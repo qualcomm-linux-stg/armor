@@ -1,5 +1,3 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause
 
 typedef int(******const****cb_func_ptr)(unsigned char ********a[100][20], int len, void ********&&context_data, int (******************volatile************const*&&inner_ptr)(int *********&&a, int ***** arr[10]));
 

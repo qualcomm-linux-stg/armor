@@ -1,5 +1,3 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause
 #include "qualified_name_builder.hpp"
 
 void QualifiedNameBuilder::push(llvm::StringRef Name) {

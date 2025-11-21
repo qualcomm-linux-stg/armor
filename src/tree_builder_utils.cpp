@@ -1,5 +1,3 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause
 #include "tree_builder_utils.hpp"
 
 clang::QualType unwrapType(clang::QualType type) {

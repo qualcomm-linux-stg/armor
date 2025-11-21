@@ -1,0 +1,22 @@
+Changes for 0.4.4 (2025-10-31)
+  * Updated html reporting to support more cases
+Changes for 0.4.3 (2025-10-31)
+  * Bug fixes
+Changes for 0.4.0 (2025-09-17)
+  * Logging Clang Diagnostics, ClangTool and tool specific logs to a common file.
+  * Enabled only user facing prints to terminal.
+  * Skipping structs with constructors in it.
+
+Changes for 0.3.0 (2025-09-12)
+  * Fixed bugs related to typedefs and anonymous types.
+  * Redesigned command-line options for the binary.
+  * Structured output reports and updated unit test cases.
+
+Changes for 0.2.0 (2025-09-07)
+  * Removed support for typedefs and anonymous structs/enums/unions.
+
+Changes for 0.1.0 (2025-09-02)
+  * Initial release of clang-ast-based static header analysis tool.
+  * Detects backward-incompatible changes in C/C++ public headers.
+  * Includes basic CLI interface and HTML output formatting.
+  * Designed for internal development and testing.

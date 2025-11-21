@@ -1,5 +1,3 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause
 #ifndef DIAG_LSM_H
 #define DIAG_LSM_H
 

@@ -1,9 +1,9 @@
-// Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include <string>
 #include "node.hpp"
+
+extern std::string DATA_TYPE_PLACE_HOLDER;
 
 extern std::string ADDED;
 extern std::string REMOVED;
