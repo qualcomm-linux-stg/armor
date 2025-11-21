@@ -60,7 +60,7 @@ runs:
         gcc --version
 
     - name: Verify Docker installation
-      shel: bash
+      shell: bash
       run: docker --version
         
     - name: Build docker image
