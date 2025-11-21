@@ -55,21 +55,20 @@ runs:
         echo "github-head path : $HEAD_PATH"
 
     
-    - name: Install GCC 11
+    - name: Install dependencies
       shell: bash
       run: |
-        sudo apt-get update && \
-        sudo apt-get install -y \
-          gcc-11 g++-11 libstdc++-11-dev \
-          libsystemd-dev \
-          libcurl4-openssl-dev libedit-dev \
-          cmake make git build-essential \
-          clang-14 libclang-common-14-dev libclang-14-dev libclang-cpp14-dev llvm-14-dev && \
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100 && \
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 10 && \
-        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 140 && \
-        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 140
-
+        sudo apt-get update
+        sudo apt-get install -y wget tar build-essential
+        
+        # Download the latest CMake release from Kitware
+        wget https://github.com/Kitware/CMake/releases/latest/download/cmake-3.30.5-linux-x86_64.sh
+        
+        # Install into /usr/local (host‑independent)
+        sudo sh cmake-3.30.5-linux-x86_64.sh --prefix=/usr/local --skip-license
+        
+        # Verify
+        cmake --version
 
     - name: Get changed files
       id: changed-files
