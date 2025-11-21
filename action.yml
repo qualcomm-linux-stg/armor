@@ -62,10 +62,34 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        sudo apt update
-        sudo apt install clang-14 make cmake
-        sudo apt install libclang-common-14-dev libclang-14-dev llvm-14-dev
+        sudo apt update && \
+          apt install -y software-properties-common wget gnupg
 
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
+          add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-14 main"
+
+        sudo apt update && \
+            apt install -y \
+            clang \
+            clang-14 \
+            make \
+            cmake \
+            libclang-common-14-dev \
+            libclang-14-dev \
+            llvm-14-dev \
+            gcc-11 \
+            g++-11 \
+            python3 \
+            python3-pip \
+            git \
+            build-essential \
+            libstdc++-11-dev
+
+        update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100 && \
+        update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100 && \
+        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
+        update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
+    
     - name: Get changed files
       id: changed-files
       shell: bash
