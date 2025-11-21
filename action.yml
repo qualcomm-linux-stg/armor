@@ -145,7 +145,7 @@ runs:
       run: |
         BASE_PATH="$GITHUB_WORKSPACE/base"
         HEAD_PATH="$GITHUB_WORKSPACE/head"
-        INTERSECTION_HEADERS_PATH="GITHUB_WORKSPACE/updated_headers_PR.txt"
+        INTERSECTION_HEADERS_PATH="$GITHUB_WORKSPACE/updated_headers_PR.txt"
         ARMOR_BINS_PATH="${{ github.action_path }}/build/armor"
         
         chmod +x "${{ github.action_path }}/action_script/run_armor.sh"
