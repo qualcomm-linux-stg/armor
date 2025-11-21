@@ -58,20 +58,9 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        sudo apt-get update && \
-        sudo apt-get install -y \
-          gcc-11 g++-11 libstdc++-11-dev \
-          libsystemd-dev \
-          libcurl4-openssl-dev libedit-dev \
-          cmake make git build-essential \
-          clang-15 libclang-common-15-dev libclang-15-dev libclang-cpp15-dev llvm-15-dev && \
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100 && \
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 10
-
-
-
-
-
+        sudo apt update
+        sudo apt install clang-14 make cmake
+        sudo apt install libclang-common-14-dev libclang-14-dev llvm-14-dev
 
     - name: Get changed files
       id: changed-files
