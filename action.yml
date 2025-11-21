@@ -58,16 +58,15 @@ runs:
     - name: Install GCC 11
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-11 g++-11 libstdc++-11-dev
-        sudo apt-get install libsystemd-dev
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
+        sudo apt-get update && \
+        sudo apt-get install -y \
+          gcc-11 g++-11 libstdc++-11-dev \
+          libsystemd-dev \
+          libcurl4-openssl-dev libedit-dev \
+          cmake make git build-essential \
+          clang-14 libclang-common-14-dev libclang-14-dev libclang-cpp14-dev llvm-14-dev && \
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100 && \
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 10
-        sudo apt-get install libcurl4-openssl-dev libedit-dev 
-        sudo apt-get install -y clang clang-14 libclang-common-14-dev libclang-14-dev llvm-14-dev
-        sudo apt-get install -y cmake make git build-essential
-
-
 
     - name: Get changed files
       id: changed-files
