@@ -127,11 +127,7 @@ runs:
             ./api_compat_check.sh --package
             ARMOR_BINS_PATH="$ACTION_DIR/build/armor"
           '
-    - name: verify armor tool
-      shell: bash
-      run: |
-        ${{ github.action_path }}/build/armor -h
-        
+          
     - name: Run ARMOR per header (collect outputs)
       if: steps.intersection.outputs.has-intersection == 'true'
       id: run-armor
