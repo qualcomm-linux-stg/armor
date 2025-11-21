@@ -58,38 +58,16 @@ runs:
       shell: bash
       run: |
         gcc --version
+
+    - name: Verify Docker installation
+      shel: bash
+      run: docker --version
         
-    - name: Install dependencies
+    - name: Build docker image
       shell: bash
       run: |
-        sudo apt update && \
-          apt install -y software-properties-common wget gnupg
-
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
-          add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-14 main"
-
-        sudo apt update && \
-            apt install -y \
-            clang \
-            clang-14 \
-            make \
-            cmake \
-            libclang-common-14-dev \
-            libclang-14-dev \
-            llvm-14-dev \
-            gcc-11 \
-            g++-11 \
-            python3 \
-            python3-pip \
-            git \
-            build-essential \
-            libstdc++-11-dev
-
-        update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100 && \
-        update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100 && \
-        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
-        update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
-    
+        docker build -t armor_tool:latest -f ${{ github.action_path }}/Dockerfile .
+        
     - name: Get changed files
       id: changed-files
       shell: bash
@@ -133,22 +111,6 @@ runs:
           echo "has-intersection=false" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Make script executable
-      if: steps.intersection.outputs.has-intersection == 'true'
-      shell: bash
-      run: chmod +x "${{ github.action_path }}/action_script/run_armor.sh"
-    
-    - name: build armor binary
-      if: steps.intersection.outputs.has-intersection == 'true'
-      id: build-armor
-      shell: bash
-      run: |
-        pushd ${{ github.action_path }}
-        sh ${{ github.action_path }}/api_compat_check.sh --package
-        popd
-        armor_bins_path="${{ github.action_path }}/build/armor"
-        echo "armor_bins_path=$armor_bins_path" >> "GITHUB_OUTPUT"
-
     - name: Run ARMOR per header (collect outputs)
       if: steps.intersection.outputs.has-intersection == 'true'
       id: run-armor
@@ -164,17 +126,32 @@ runs:
         LOG_LEVEL: "INFO"
         DUMP_AST_DIFF: "true"
       run: |
-        set -euo pipefail
-        BASE_PATH="$GITHUB_WORKSPACE/base"
-        HEAD_PATH="$GITHUB_WORKSPACE/head"
-        INTERSECTION_HEADERS_PATH="$GITHUB_WORKSPACE/updated_headers_PR.txt"
-        ARMOR_BINS_PATH="${{ steps.build-armor.outputs.armor_bins_path }}"
+        ACTION_DIR=${{ github.action_path }}
+        WORKSPACE_PATH="$GITHUB_WORKSPACE"
 
-        sh ${{ github.action_path }}/action_script/run_armor.sh $BASE_PATH $HEAD_PATH $INTERSECTION_HEADERS_PATH $ARMOR_BINS_PATH
+        docker run -i --rm \
+          --user $(id -u):$(id -g) \
+          --workdir="$ACTION_DIR" \
+          -v "$WORKSPACE_PATH":"$WORKSPACE_PATH" \
+          -e WORKSPACE_PATH="$WORKSPACE_PATH" \
+          -e ACTION_DIR="$ACTION_DIR" \
+          armor_tool:latest bash -c '
+            set -euo pipefail
 
-        OUT_ROOT="$(cat "$GITHUB_WORKSPACE/.armor_out_root")"
-        echo "out-root=${OUT_ROOT}" >> "$GITHUB_OUTPUT"
+            ./api_compat_check.sh --package
+            ARMOR_BINS_PATH="$ACTION_DIR/build/armor"
 
+            cd "$WORKSPACE_PATH"
+            BASE_PATH="./base"
+            HEAD_PATH="./head"
+            INTERSECTION_HEADERS_PATH="./updated_headers_PR.txt"
+
+            "$ACTION_DIR/action_script/run_armor.sh" "$BASE_PATH" "$HEAD_PATH" "$INTERSECTION_HEADERS_PATH" "$ARMOR_BINS_PATH"
+
+            OUT_ROOT="$(cat "$WORKSPACE_PATH/.armor_out_root")"
+            echo "out-root=$OUT_ROOT" >> "$GITHUB_OUTPUT"
+          '
+          
     - name: Upload updated_headers_PR artifact
       if: steps.intersection.outputs.has-intersection == 'true'
       uses: actions/upload-artifact@v4
