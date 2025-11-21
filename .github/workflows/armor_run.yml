@@ -1,0 +1,14 @@
+name: Backward Compatibility Check
+on:
+  workflow_call:
+    inputs:
+        head_sha: { required: true, type: string }
+        base_sha: { required: true, type: string }
+jobs:
+  run:
+    runs-on: [ self-hosted ]
+    steps:
+        - name: printing head_sha and base_sha
+          run: |
+             echo "head_sha Name: ${{ inputs.head_sha }}"
+             echo "base_sha Name: ${{ inputs.base_sha }}"
