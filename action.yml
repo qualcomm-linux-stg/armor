@@ -133,13 +133,16 @@ runs:
           --user $(id -u):$(id -g) \
           --workdir="$ACTION_DIR" \
           -v "$WORKSPACE_PATH":"$WORKSPACE_PATH" \
+          -v "$ACTION_DIR":"$ACTION_DIR" \
           -e WORKSPACE_PATH="$WORKSPACE_PATH" \
           -e ACTION_DIR="$ACTION_DIR" \
           armor_tool:latest bash -c '
             set -euo pipefail
-
+            chmod +x ./api_compat_check.sh
             ./api_compat_check.sh --package
             ARMOR_BINS_PATH="$ACTION_DIR/build/armor"
+
+            $ARMOR_BINS_PATH -h
 
             cd "$WORKSPACE_PATH"
             BASE_PATH="./base"
