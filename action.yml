@@ -54,7 +54,11 @@ runs:
         echo "github-base path : $BASE_PATH"
         echo "github-head path : $HEAD_PATH"
 
-    
+    - name: print gcc version
+      shell: bash
+      run: |
+        gcc --version
+        
     - name: Install dependencies
       shell: bash
       run: |
