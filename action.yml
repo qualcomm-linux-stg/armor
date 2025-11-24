@@ -29,6 +29,11 @@ inputs:
     description: "Triggering actor (github.actor)"
     required: false
     default: ""
+  repo-token:
+      description: "Token for GitHub API calls"
+      required: true
+
+
 
 runs:
   using: "composite"
@@ -192,32 +197,53 @@ runs:
         echo "Overall status: $STATUS"
         echo "res=$STATUS" >> "$GITHUB_OUTPUT"
 
-    - name: Post commit status (Checks link)
+
+    - name: Post PR comment with ARMOR summary
       if: always()
       shell: bash
       run: |
-        set -e
-        sha="${{ inputs.head-sha }}"
-        check_name="armor-compat-check"
-        repo="${{ github.repository }}"
+        set -euo pipefail
+
+        # Inputs and common context
+        repo="${{ inputs.repo }}"
+        pr="${{ github.event.pull_request.number }}"
+        token="${{ inputs.repo-token }}"
         workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        out_root="${{ steps.run-armor.outputs.out-root }}"
+        status="${{ steps.compatibility_status.outputs.res }}"
 
-        # Map result to allowed states for Statuses API
-        case "${{ steps.compatibility_status.outputs.res }}" in
-          success) STATE="success" ;;
-          failure|fails|error) STATE="failure" ;; # treat failure/fails/error as failure
-          *) STATE="pending" ;;
-        esac
+        # Compose the comment body
+        header="### ARMOR Compatibility Check\n\n**Overall Status:** \`${status}\`\n\nView workflow run\n"
 
-        payload=$(jq -n \
-          --arg state "$STATE" \
-          --arg context "$check_name" \
-          --arg description "ARMOR results: ${{ steps.compatibility_status.outputs.res }}" \
-          --arg target_url "$workflow_url" \
-          '{state:$state, context:$context, description:$description, target_url:$target_url}')
+        # Try to read compat_summary.json if available
+        summary_path=""
+        if [[ -n "${out_root}" && -d "${out_root}" ]]; then
+          summary_path="${out_root}/compat_summary.json"
+        fi
 
-        curl -sS -X POST \
-          -H "Authorization: Bearer ${{ github.token }}" \
+        if [[ -n "${summary_path}" && -f "${summary_path}" ]]; then
+          # Extract a concise summary if you want; otherwise include raw JSON
+          # Example: pull top-level fields into a short line
+          short_summary="$(jq -r '
+              to_entries
+              | map("\(.key): \(.value|tostring)")
+              | join(", ")
+            ' "${summary_path}" 2>/dev/null || echo "")"
+
+          # Read entire JSON content for a fenced block
+          json_block="$(cat "${summary_path}" || echo '')"
+
+          body="${header}\n**Summary fields:** ${short_summary}\n\n**Detailed JSON:**\n\`\`\`json\n${json_block}\n\`\`\`\n"
+        else
+          body="${header}\n"
+        fi
+
+        # Post the comment to the PR
+        curl -L \
+          -X POST \
           -H "Accept: application/vnd.github+json" \
-          "https://api.github.com/repos/$repo/statuses/$sha" \
-          -d "$payload"
+          -H "Authorization: Bearer ${token}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/${repo}/issues/${pr}/comments" \
+          -d "$(jq -n --arg body "$body" '{body: $body}')"
+

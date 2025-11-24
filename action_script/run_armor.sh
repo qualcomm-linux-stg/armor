@@ -137,17 +137,6 @@ for header in "${HEADERS[@]}"; do
   rm -rf "$WORK_DIR" || true
 done
 
-# Write a tiny metadata file (useful when inspecting artifact)
-{
-  echo "head_sha=${HEAD_SHA}"
-  echo "base_sha=${BASE_SHA}"
-  echo "headers_count=${#HEADERS[@]}"
-  printf "headers="; printf "%s;" "${HEADERS[@]}"; echo
-} > "${OUT_ROOT}/metadata.txt"
-
-log "Armor output prepared at: ${OUT_ROOT}"
-echo "${OUT_ROOT}" > "${GITHUB_WORKSPACE}/.armor_out_root"
-
 
 # ------------ Compatibility scan (jq) ------------
 log "Scanning JSON reports for backward incompatibilities using jq..."
@@ -219,6 +208,18 @@ echo "$overall_status" > "${GITHUB_WORKSPACE}/.armor_status"
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "status=${overall_status}" >> "$GITHUB_OUTPUT"
 fi
+
+# Write a tiny metadata file (useful when inspecting artifact)
+{
+  echo "head_sha=${HEAD_SHA}"
+  echo "base_sha=${BASE_SHA}"
+  echo "Total Update headers in PR=${#HEADERS[@]}"
+  (cat "${OUT_ROOT}/compat_summary.json")
+} > "${OUT_ROOT}/metadata.txt"
+
+log "Armor output prepared at: ${OUT_ROOT}"
+echo "${OUT_ROOT}" > "${GITHUB_WORKSPACE}/.armor_out_root"
+
 
 # Do NOT fail the step
 exit 0
