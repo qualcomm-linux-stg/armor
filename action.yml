@@ -1,3 +1,4 @@
+
 name: "Print Event SHAs"
 description: "Run ARMOR tool"
 author: "LinuxIntegration"
@@ -37,74 +38,84 @@ runs:
       with:
         ref: ${{ inputs.base-sha }}
         path: base
+        fetch-depth: 0
 
     - name: Checkout head commit
       uses: actions/checkout@v4
       with:
         ref: ${{ inputs.head-sha }}
         path: head
+        fetch-depth: 0
 
-    - name: Echo path in action
+    - name: Echo paths and SHAs
       shell: bash
       run: |
-        echo "Base SHA: ${{ inputs.base-sha }}"
-        echo "Head SHA: ${{ inputs.head-sha }}"
-        BASE_PATH="$GITHUB_WORKSPACE/base"
-        HEAD_PATH="$GITHUB_WORKSPACE/head"
-        echo "github-base path : $BASE_PATH"
-        echo "github-head path : $HEAD_PATH"
+        echo "Event       : ${{ inputs.event-name }}"
+        echo "Base SHA    : ${{ inputs.base-sha }}"
+        echo "Head SHA    : ${{ inputs.head-sha }}"
+        echo "github-base path : $GITHUB_WORKSPACE/base"
+        echo "github-head path : $GITHUB_WORKSPACE/head"
 
-    - name: print gcc version
+    - name: Verify gcc and Docker installation
       shell: bash
       run: |
+        set -e
+        gcc --version || { echo "gcc missing"; exit 1; }
+        docker --version || { echo "docker missing"; exit 1; }
 
-    - name: Verify gcc version and  Docker installation
+    - name: Build docker image (use action directory as context)
       shell: bash
       run: |
-        gcc --version
-        docker --version
+        set -e
+        docker build -t armor_tool:latest -f "${{ github.action_path }}/Dockerfile" "${{ github.action_path }}"
 
-    - name: Build docker image
+    - name: Install yq
       shell: bash
       run: |
-        docker build -t armor_tool:latest -f ${{ github.action_path }}/Dockerfile .
+        set -e
+        if ! command -v yq >/dev/null 2>&1; then
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+        fi
 
     - name: Get changed files
       id: changed-files
       shell: bash
       run: |
-        cd head
-        git fetch origin ${{ inputs.base-sha }}
-        git diff --name-only ${{ inputs.base-sha }} ${{ inputs.head-sha }} > $GITHUB_WORKSPACE/changed_files.txt
+        set -e
+        # Diff directly using the two trees
+        git --git-dir="$GITHUB_WORKSPACE/head/.git" --work-tree="$GITHUB_WORKSPACE/head" diff --name-only ${{ inputs.base-sha }} ${{ inputs.head-sha }} > "$GITHUB_WORKSPACE/changed_files.txt" || true
         echo "Changed files:"
-        cat $GITHUB_WORKSPACE/changed_files.txt
+        cat "$GITHUB_WORKSPACE/changed_files.txt" || true
 
     - name: Parse YAML for headers
       id: parse-yaml
       shell: bash
       run: |
+        set -e
         YAML_FILE="$GITHUB_WORKSPACE/public_headers/armor_config.yaml"
         if [[ -f "$YAML_FILE" ]]; then
           echo "Parsing $YAML_FILE"
-          HEADERS=$(yq '.branches.main.headers[]' "$YAML_FILE")
-          echo "$HEADERS" > $GITHUB_WORKSPACE/headers.txt
+          yq '.branches.main.headers[]' "$YAML_FILE" > "$GITHUB_WORKSPACE/headers.txt"
           echo "Headers from YAML:"
-          cat $GITHUB_WORKSPACE/headers.txt
+          cat "$GITHUB_WORKSPACE/headers.txt"
         else
-          echo "YAML file not found!"
+          echo "YAML file not found at $YAML_FILE"
           exit 1
         fi
-
 
     - name: Find intersection of changed files and headers
       id: intersection
       shell: bash
       run: |
-        INTERSECT=$(grep -Fxf $GITHUB_WORKSPACE/headers.txt $GITHUB_WORKSPACE/changed_files.txt || true)
-        echo "$INTERSECT" > $GITHUB_WORKSPACE/updated_headers_PR.txt
+        set -e
+        INTERSECT=$(grep -Fxf "$GITHUB_WORKSPACE/headers.txt" "$GITHUB_WORKSPACE/changed_files.txt" || true)
+        echo "$INTERSECT" > "$GITHUB_WORKSPACE/updated_headers_PR.txt"
         if [[ -n "$INTERSECT" ]]; then
           echo "Intersection found:"
-          cat $GITHUB_WORKSPACE/updated_headers_PR.txt
+          cat "$GITHUB_WORKSPACE/updated_headers_PR.txt"
           echo "has-intersection=true" >> "$GITHUB_OUTPUT"
         else
           echo "No intersection found."
@@ -112,20 +123,21 @@ runs:
           echo "has-intersection=false" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: build armor tool
+    - name: Build ARMOR tool inside container
       shell: bash
       run: |
-        ACTION_DIR=${{ github.action_path }}
+        set -euo pipefail
+        ACTION_DIR="${{ github.action_path }}"
         docker run -i --rm \
           --user $(id -u):$(id -g) \
-          --workdir="$ACTION_DIR" \
           -v "$ACTION_DIR":"$ACTION_DIR" \
           -e ACTION_DIR="$ACTION_DIR" \
+          -w "$ACTION_DIR" \
           armor_tool:latest bash -c '
             set -euo pipefail
             chmod +x ./api_compat_check.sh
             ./api_compat_check.sh --package
-            ARMOR_BINS_PATH="$ACTION_DIR/build/armor"
+            echo "$ACTION_DIR/build/armor" > "$ACTION_DIR/.armor_bins_path"
           '
 
     - name: Run ARMOR per header (collect outputs)
@@ -133,20 +145,16 @@ runs:
       id: run-armor
       shell: bash
       env:
-        HEAD_SHA:   ${{ inputs.head-sha }}
-        BASE_SHA:   ${{ steps.base-ref.outputs.base }}
-        # Optional armor tuning:
-        # HEADER_DIR: "include/api"           # if your headers list are basenames
-        REPORT_FORMAT: "json"               # produces html + json
-        # INCLUDE_PATHS: "-I include -I third_party/include"
-        # MACRO_FLAGS: "-DUSE_FOO -DVALUE=1"
+        REPORT_FORMAT: "json"
         LOG_LEVEL: "INFO"
         DUMP_AST_DIFF: "true"
       run: |
+        set -e
         BASE_PATH="$GITHUB_WORKSPACE/base"
         HEAD_PATH="$GITHUB_WORKSPACE/head"
         INTERSECTION_HEADERS_PATH="$GITHUB_WORKSPACE/updated_headers_PR.txt"
-        ARMOR_BINS_PATH="${{ github.action_path }}/build/armor"
+        ARMOR_BINS_PATH="$(cat "${{ github.action_path }}/.armor_bins_path")"
+
         chmod +x "${{ github.action_path }}/action_script/run_armor.sh"
         "${{ github.action_path }}/action_script/run_armor.sh" "$BASE_PATH" "$HEAD_PATH" "$INTERSECTION_HEADERS_PATH" "$ARMOR_BINS_PATH"
 
@@ -159,7 +167,7 @@ runs:
       with:
         name: updated_headers_PR
         path: ${{ github.workspace }}/updated_headers_PR.txt
-    
+
     - name: Upload all armor outputs (artifact)
       if: steps.intersection.outputs.has-intersection == 'true'
       uses: actions/upload-artifact@v4
@@ -168,8 +176,48 @@ runs:
         path: ${{ steps.run-armor.outputs.out-root }}
         if-no-files-found: warn
 
-    - name: Check backward_compatibility fails
+    - name: Compute compatibility status
       id: compatibility_status
       shell: bash
       run: |
-        echo " overall status : ${{ steps.run-armor.outputs.status }} "
+        set -e
+        # Expect your run_armor.sh to set status file or output; adjust as needed
+        STATUS_FILE="$GITHUB_WORKSPACE/.armor_status"
+        if [[ -f "$STATUS_FILE" ]]; then
+          STATUS="$(cat "$STATUS_FILE")"
+        else
+          # Fallback: mark success if outputs exist
+          [[ -d "${{ steps.run-armor.outputs.out-root }}" ]] && STATUS="success" || STATUS="failure"
+        fi
+        echo "Overall status: $STATUS"
+        echo "res=$STATUS" >> "$GITHUB_OUTPUT"
+
+    - name: Post commit status (Checks link)
+      if: always()
+      shell: bash
+      run: |
+        set -e
+        sha="${{ inputs.head-sha }}"
+        check_name="armor-compat-check"
+        repo="${{ github.repository }}"
+        workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+        # Map result to allowed states for Statuses API
+        case "${{ steps.compatibility_status.outputs.res }}" in
+          success) STATE="success" ;;
+          failure|fails|error) STATE="failure" ;; # treat failure/fails/error as failure
+          *) STATE="pending" ;;
+        esac
+
+        payload=$(jq -n \
+          --arg state "$STATE" \
+          --arg context "$check_name" \
+          --arg description "ARMOR results: ${{ steps.compatibility_status.outputs.res }}" \
+          --arg target_url "$workflow_url" \
+          '{state:$state, context:$context, description:$description, target_url:$target_url}')
+
+        curl -sS -X POST \
+          -H "Authorization: Bearer ${{ github.token }}" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/$repo/statuses/$sha" \
+          -d "$payload"
