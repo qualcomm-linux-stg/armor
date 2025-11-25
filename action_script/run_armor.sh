@@ -126,6 +126,41 @@ for header in "${HEADERS[@]}"; do
     generated_any=true
   fi
 
+  
+  # Parse JSON report and append to compact summary + track incompatible headers
+  json_report="${WORK_DIR}/armor_reports/json_reports/api_diff_report_$(basename "$hdr_arg").json"
+  if [[ -f "$json_report" ]]; then
+    compatibility="backward_compatible"
+    names=()
+
+    while IFS= read -r line; do
+      comp=$(jq -r '.compatibility' <<< "$line")
+      name=$(jq -r '.name' <<< "$line")
+      [[ "$comp" == "backward_incompatible" ]] && compatibility="backward_incompatible"
+      names+=("$name")
+    done < <(jq -c '.[]' "$json_report")
+
+    {
+      echo "{"
+      echo "  \"header\": \"$header\","
+      echo "  \"compatibility\": \"$compatibility\","
+      echo "  \"names\": ["
+      for i in "${!names[@]}"; do
+        [[ $i -gt 0 ]] && echo ","
+        echo "    \"${names[$i]}\""
+      done
+      echo "  ]"
+      echo "},"
+    } >> "${OUT_ROOT}/compact_summary.tmp"
+
+    # If backward incompatible, add to separate list
+    if [[ "$compatibility" == "backward_incompatible" ]]; then
+      echo "$header" >> "${OUT_ROOT}/incompatible_headers.tmp"
+    fi
+  else
+    warn "JSON report not found for header: $hdr_arg"
+  fi
+
   dest="${OUT_ROOT}/${safe}"
   mkdir -p "$dest"
 
@@ -138,88 +173,46 @@ for header in "${HEADERS[@]}"; do
 done
 
 
-# ------------ Compatibility scan (jq) ------------
-log "Scanning JSON reports for backward incompatibilities using jq..."
 
-failed_headers=()
-declare -A fail_counts
-
-# Recursively scan under OUT_ROOT for api_diff_report_*.json
-while IFS= read -r -d '' f; do
-  dir="$(dirname "$f")"
-
-  # Prefer full relative header path from marker file; fallback to file name
-  if [[ -f "${dir}/.header_path" ]]; then
-    header_full="$(<"${dir}/.header_path")"
-  else
-    base="$(basename "$f")"
-    header_full="${base#api_diff_report_}"
-    header_full="${header_full%.json}"
-  fi
-
-  # Count backward_incompatible entries; treat parse errors as failure
-  count="$(jq '[.[] | select(.compatibility=="backward_incompatible")] | length' "$f" 2>/dev/null || echo "__jq_error__")"
-  if [[ "$count" == "__jq_error__" ]]; then
-    warn "Malformed or unreadable JSON: $f (marking header as FAIL)"
-    failed_headers+=("$header_full")
-    fail_counts["$header_full"]=$(( ${fail_counts["$header_full"]:-0} + 1 ))
-    continue
-  fi
-
-  if (( count > 0 )); then
-    echo "- ${header_full}: FAIL (${count} incompatible change(s))"
-    failed_headers+=("$header_full")
-    fail_counts["$header_full"]="$count"
-  else
-    echo "- ${header_full}: PASS"
-  fi
-done < <(find "$OUT_ROOT" -type f -name 'api_diff_report_*.json' -print0)
-
-overall_status="pass"
-if (( ${#failed_headers[@]} > 0 )); then
-  overall_status="fail"
-  echo "=============================================="
-  err "Overall: FAIL"
-  err "Headers failing backward compatibility (full relative paths):"
-  for h in "${failed_headers[@]}"; do
-    echo "  - ${h} (incompatible changes: ${fail_counts[$h]:-unknown})"
-  done
-else
-  echo "=============================================="
-  log "Overall: PASS (no backward incompatibilities detected)"
+# Finalize compact_summary.json
+SUMMARY_FILE="${OUT_ROOT}/compact_summary.json"
+if [[ -f "${OUT_ROOT}/compact_summary.tmp" ]]; then
+  echo "[" > "$SUMMARY_FILE"
+  cat "${OUT_ROOT}/compact_summary.tmp" | sed '$ s/,$//' >> "$SUMMARY_FILE"
+  echo "]" >> "$SUMMARY_FILE"
+  rm -f "${OUT_ROOT}/compact_summary.tmp"
 fi
 
-# Emit machine-readable summary (uses full relative header paths)
-summary_path="${OUT_ROOT}/compat_summary.json"
-{
-  printf '{\n  "overall_status": "%s",\n  "failed_headers": [' "$overall_status"
-  for i in "${!failed_headers[@]}"; do
-    h="${failed_headers[$i]}"
-    c="${fail_counts[$h]:-null}"
-    printf '\n    {"header": "%s", "incompatible_count": %s}' "$h" "$c"
-    [[ $i -lt $((${#failed_headers[@]} - 1)) ]] && printf ','
-  done
-  printf '\n  ]\n}\n'
-} > "$summary_path"
-log "Summary written: $summary_path"
+# Finalize incompatible headers list
+INCOMPATIBLE_FILE="${OUT_ROOT}/metadata.txt"
+if [[ -f "${OUT_ROOT}/incompatible_headers.tmp" ]]; then
+  sort -u "${OUT_ROOT}/incompatible_headers.tmp" > "$INCOMPATIBLE_FILE"
+  rm -f "${OUT_ROOT}/incompatible_headers.tmp"
+  log "List of backward incompatible headers written to $INCOMPATIBLE_FILE"
+else
+  log "No backward incompatible headers found."
+fi
 
-# Write status to a file and as GitHub Actions output (if available)
+log "Compact summary written to $SUMMARY_FILE"
+
+
+# Determine overall status
+if [[ -f "${OUT_ROOT}/metadata.txt" ]] && [[ -s "${OUT_ROOT}/metadata.txt" ]]; then
+  overall_status="failure"
+else
+  overall_status="success"
+fi
+
+# Write status to file
 echo "$overall_status" > "${GITHUB_WORKSPACE}/.armor_status"
+
+# Export status for GitHub Actions
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "status=${overall_status}" >> "$GITHUB_OUTPUT"
 fi
 
-# Write a tiny metadata file (useful when inspecting artifact)
-{
-  echo "head_sha=${HEAD_SHA}"
-  echo "base_sha=${BASE_SHA}"
-  echo "Total Update headers in PR=${#HEADERS[@]}"
-  (cat "${OUT_ROOT}/compat_summary.json")
-} > "${OUT_ROOT}/metadata.txt"
+log "Overall status: $overall_status"
+
 
 log "Armor output prepared at: ${OUT_ROOT}"
 echo "${OUT_ROOT}" > "${GITHUB_WORKSPACE}/.armor_out_root"
-
-
-# Do NOT fail the step
-exit 0

@@ -206,26 +206,27 @@ runs:
         out_root="${{ steps.run-armor.outputs.out-root }}"
         status="${{ steps.compatibility_status.outputs.res }}"
 
-        header="### ARMOR Compatibility Check
+        header="### ARMOR Check Result
 
-          **Overall Status:** \`${status}\`
+        **Status:** \`${status}\`
+        "
+
+        body="$header"
+
+        summary_path="${out_root}/compact_summary.json"
+        incompatible_path="${out_root}/metadata.txt"
+
+        if [[ -f "$summary_path" ]]; then
+          failed_headers=""
+          if [[ -f "$incompatible_path" && -s "$incompatible_path" ]]; then
+            failed_headers=$(awk '{print "- " $0}' "$incompatible_path")
+          fi
+
+          body="${body}
+
+          **Backward Incompatible Headers:**
+          ${failed_headers:-None}
           "
-
-        summary_path=""
-        if [[ -n "${out_root}" && -d "${out_root}" ]]; then
-          summary_path="${out_root}/compat_summary.json"
-        fi
-
-        if [[ -n "${summary_path}" && -f "${summary_path}" ]]; then
-          overall_status=$(jq -r '.overall_status' "${summary_path}")
-          failed_headers=$(jq -r '.failed_headers[] | "- \(.header) (incompatible_count: \(.incompatible_count))"' "${summary_path}")
-
-          body="${header}
-            **Overall Status:** ${overall_status}
-
-            **Failed Headers:**
-            ${failed_headers}
-            "
         fi
 
         echo ${body}
@@ -239,3 +240,15 @@ runs:
           "https://api.github.com/repos/${repo}/issues/${pr}/comments" \
           -d "$(jq -n --arg body "$body" '{body: $body}')"
 
+    - name: Fail if incompatible changes detected
+      if: steps.intersection.outputs.has-intersection == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        status="${{ steps.run-armor.outputs.status }}"
+        if [[ "$status" == "failure" ]]; then
+          echo "::error ::ARMOR detected backward incompatible changes. Failing the check."
+          exit 1
+        else
+          echo "ARMOR check passed (status: $status)."
+        fi
