@@ -1,1 +1,128 @@
-
+defaults:
+  coral.actions/configuration:
+    application: ${{ inputs.application }}
+    external-id: ${{ inputs.externalId }}
+    labels: ${{ inputs.labels }}
+    overrides:
+      applicationSettings:
+        - name: JenkinsJobPipelineDynamicGroovyVersion
+          value: v2
+        - name: JenkinsJobPipelineName
+          value: job-pipeline-v2
+  runs-on:
+    coral.actions/resource:
+      compute:
+        provider: ${{ inputs.compute.provider }}
+        architecture: ${{ inputs.compute.architecture }}
+        os: ${{ inputs.download.compute.os }}
+        containment: ${{ inputs.compute.containment }}
+        host: ${{ inputs.compute.host }}
+on:
+  workflow_call:
+    inputs:        
+      labels:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            hidden: true
+          ref: 'Method.get_labels'
+      externalId:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            hidden: true
+          ref: 'WorkflowSpec.workflowId'
+      workflowConfigId:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            hidden: true
+          ref: 'WorkflowConfigSpec.id'
+      application:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            hidden: true
+          ref: 'Settings.WAAS_APPLICATION_SOURCE'
+      timeoutInMinutes:
+        type: number
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Number'
+            defaultValue: 300
+            description: 'Workflow Task timeout in minutes'
+            label: 'Workflow task timeout in minutes'
+            rules: 
+              - type: 'max'
+                value: 480
+                message: 'Max allowed timeout is 480mins.'
+              - type: 'min'
+                value: 10
+                message: 'Min allowed timeout is 10mins.'
+      projectname:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            description: 'project name'
+            label: 'Project Name'
+            type: 'Text'
+      branch:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            label: 'Branch'
+      pr_number:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            label: 'PR Number'
+      commit:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            label: 'PR Commit'
+            description: 'PR Commit Number'
+      mode:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            label: 'Mode'
+            description: 'Enabled ModeType'
+      report:
+        type: string
+        coral.actions/metadata:
+          ui-annotations:
+            type: 'Text'
+            label: 'Output Report'
+            description: 'ARMOR Tool output report'
+          
+jobs:
+  step0:
+    timeout-minutes: ${{ inputs.timeoutInMinutes }}
+    coral.actions/labels: ${{ inputs.labels }}
+    container:
+      coral.actions/container: 
+        images:
+          - image: 019415958841.dkr.ecr.us-west-2.amazonaws.com/stormchaser/ci.lint.utilities:${{ inputs.lintUtilitiesTag }} #22.04.20251113.7
+            name: step0
+            entry-point: ["/bin/bash", "-c"]
+            init: false
+            essential: true
+            primary: true
+            env: 
+              PATH: /bin/lint_utilities/.venv/bin/:/bin/lint_utilities/dist:/usr/bin/crm/dist:/usr/local/bin:/usr/bin:/bin
+    steps:
+      - run: |
+          printenv;
+          python --version
+          python - <<EOF
+          print("Hello from Python block!")
+          for i in range(3):
+              print(i)
+          EOF
