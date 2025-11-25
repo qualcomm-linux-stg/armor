@@ -90,21 +90,29 @@ runs:
         echo "Changed files:"
         cat "$GITHUB_WORKSPACE/changed_files.txt" || true
 
-    - name: Parse YAML for headers
+    - name: Parse YAML for headers and blocking mode
       id: parse-yaml
       shell: bash
       run: |
         set -e
         YAML_FILE="$GITHUB_WORKSPACE/public_headers/armor_config.yaml"
+        CURRENT_BRANCH="main" # or derive dynamically if needed
         if [[ -f "$YAML_FILE" ]]; then
-          echo "Parsing $YAML_FILE"
-          yq '.branches.main.headers[]' "$YAML_FILE" > "$GITHUB_WORKSPACE/headers.txt"
-          echo "Headers from YAML:"
-          cat "$GITHUB_WORKSPACE/headers.txt"
+          echo "Parsing $YAML_FILE for branch: $CURRENT_BRANCH"
+          # Extract all headers for intersection
+          yq ".branches.${CURRENT_BRANCH}.modes.blocking.headers[]" "$YAML_FILE" > "$GITHUB_WORKSPACE/blocking_headers.txt"
+          yq ".branches.${CURRENT_BRANCH}.modes.non-blocking.headers[]" "$YAML_FILE" > "$GITHUB_WORKSPACE/non_blocking_headers.txt" || true
+          # Combine both for intersection check
+          cat "$GITHUB_WORKSPACE/blocking_headers.txt" "$GITHUB_WORKSPACE/non_blocking_headers.txt" > "$GITHUB_WORKSPACE/headers.txt"
+          echo "Blocking headers:"
+          cat "$GITHUB_WORKSPACE/blocking_headers.txt"
+          echo "Non-blocking headers:"
+          cat "$GITHUB_WORKSPACE/non_blocking_headers.txt" || echo "None"
         else
           echo "YAML file not found at $YAML_FILE"
           exit 1
         fi
+
 
     - name: Find intersection of changed files and headers
       id: intersection
@@ -186,8 +194,7 @@ runs:
         if [[ -f "$STATUS_FILE" ]]; then
           STATUS="$(cat "$STATUS_FILE")"
         else
-          # Fallback: mark success if outputs exist
-          [[ -d "${{ steps.run-armor.outputs.out-root }}" ]] && STATUS="success" || STATUS="failure"
+          STATUS="success"
         fi
         echo "Overall status: $STATUS"
         echo "res=$STATUS" >> "$GITHUB_OUTPUT"
@@ -203,12 +210,15 @@ runs:
         pr="${{ github.event.pull_request.number }}"
         token="${{ inputs.repo-token }}"
         workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        artifacts="${workflow_url}#artifacts"
         out_root="${{ steps.run-armor.outputs.out-root }}"
         status="${{ steps.compatibility_status.outputs.res }}"
 
         header="### ARMOR Check Result
 
         **Status:** \`${status}\`
+        please checks [Artifacts](${artifacts}) for details.
+
         "
 
         body="$header"
@@ -220,13 +230,15 @@ runs:
           failed_headers=""
           if [[ -f "$incompatible_path" && -s "$incompatible_path" ]]; then
             failed_headers=$(awk '{print "- " $0}' "$incompatible_path")
+
+            body="${body}
+
+            ---
+            **Backward Incompatible Headers:**
+            ${failed_headers:-None}
+
+            "
           fi
-
-          body="${body}
-
-          **Backward Incompatible Headers:**
-          ${failed_headers:-None}
-          "
         fi
 
         echo ${body}

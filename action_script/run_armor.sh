@@ -195,24 +195,22 @@ fi
 
 log "Compact summary written to $SUMMARY_FILE"
 
+BLOCKING_FILE="${GITHUB_WORKSPACE}/blocking_headers.txt"
+overall_status="success"
 
-# Determine overall status
-if [[ -f "${OUT_ROOT}/metadata.txt" ]] && [[ -s "${OUT_ROOT}/metadata.txt" ]]; then
-  overall_status="failure"
-else
-  overall_status="success"
+if [[ -f "$BLOCKING_FILE" && -s "$BLOCKING_FILE" && -f "$INCOMPATIBLE_FILE" && -s "$INCOMPATIBLE_FILE" ]]; then
+  if grep -Fxf "$BLOCKING_FILE" "$INCOMPATIBLE_FILE" >/dev/null; then
+    overall_status="failure"
+  fi
 fi
 
-# Write status to file
 echo "$overall_status" > "${GITHUB_WORKSPACE}/.armor_status"
 
-# Export status for GitHub Actions
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "status=${overall_status}" >> "$GITHUB_OUTPUT"
 fi
 
-log "Overall status: $overall_status"
-
-
+log "Overall status (blocking mode check): $overall_status"
 log "Armor output prepared at: ${OUT_ROOT}"
+
 echo "${OUT_ROOT}" > "${GITHUB_WORKSPACE}/.armor_out_root"
