@@ -240,29 +240,29 @@ runs:
           "https://api.github.com/repos/${repo}/issues/${pr}/comments" \
           -d "$body"
     - name: Post commit status
-     if: always()
-     shell: bash
-     run: |
-       set -e
-       sha="${{ inputs.head-sha }}"
-       check_name="armor-compat-check"
-       repo="${{ github.repository }}"
-       workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-       # Map result to allowed states for Statuses API
-       case "${{ steps.compatibility_status.outputs.res }}" in
-         success) STATE="success" ;;
-         failure|fails|error) STATE="failure" ;; # treat failure/fails/error as failure
-         *) STATE="pending" ;;
-       esac
-       payload=$(jq -n \
-         --arg state "$STATE" \
-         --arg context "$check_name" \
-         --arg description "ARMOR results: ${{ steps.compatibility_status.outputs.res }}" \
-         --arg target_url "$workflow_url" \
-         '{state:$state, context:$context, description:$description, target_url:$target_url}')
-       curl -sS -X POST \
-         -H "Authorization: Bearer ${{ github.token }}" \
-         -H "Accept: application/vnd.github+json" \
-         "https://api.github.com/repos/$repo/statuses/$sha" \
-         -d "$payload"
+	  if: always()
+	  shell: bash
+	  run: |
+	    set -e
+	    sha="${{ inputs.head-sha }}"
+	    check_name="armor-compat-check"
+	    repo="${{ github.repository }}"
+	    workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+	    # Map result to allowed states for Statuses API
+	    case "${{ steps.compatibility_status.outputs.res }}" in
+		  success) STATE="success" ;;
+		  failure|fails|error) STATE="failure" ;; # treat failure/fails/error as failure
+		  *) STATE="pending" ;;
+	    esac
+	    payload=$(jq -n \
+		  --arg state "$STATE" \
+		  --arg context "$check_name" \
+		  --arg description "ARMOR results: ${{ steps.compatibility_status.outputs.res }}" \
+		  --arg target_url "$workflow_url" \
+		  '{state:$state, context:$context, description:$description, target_url:$target_url}')
+	    curl -sS -X POST \
+		  -H "Authorization: Bearer ${{ github.token }}" \
+		  -H "Accept: application/vnd.github+json" \
+		  "https://api.github.com/repos/$repo/statuses/$sha" \
+		  -d "$payload"
 
