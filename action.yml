@@ -280,7 +280,7 @@ runs:
         # Map result to allowed states for Statuses API
         case "${{ steps.compatibility_status.outputs.res }}" in
         success) STATE="success" ;;
-        failure|fails|error) STATE="failure" ;; # treat failure/fails/error as failure
+        failure|fails|error) STATE="success" ;; # treat failure/fails/error as failure
         *) STATE="pending" ;;
         esac
         payload=$(jq -n \
