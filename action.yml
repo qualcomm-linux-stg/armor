@@ -212,36 +212,40 @@ runs:
         workflow_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         artifacts="${workflow_url}#artifacts"
         out_root="${{ steps.run-armor.outputs.out-root }}"
-        status="${{ steps.compatibility_status.outputs.res }}"
-
-        header="### ARMOR Check Result
-
-        **Status:** \`${status}\`
-        please checks [Artifacts](${artifacts}) for details.
-
-        "
-
-        body="$header"
-
         summary_path="${out_root}/compact_summary.json"
         incompatible_path="${out_root}/metadata.txt"
+        status="${{ steps.compatibility_status.outputs.res }}"
 
+        body="$(cat <<'EOF'
+        ### ARMOR Check Result
+
+        **Status:** `__STATUS__`
+
+        Please check __ARTIFACTS__ for details.
+        EOF
+        )"
+        # Substitute tokens
+        body="${body/__STATUS__/${status}}"
+        body="${body/__ARTIFACTS__/${artifacts}}"
+
+        # Append incompatible headers section if present and non-empty
         if [[ -f "$summary_path" ]]; then
-          failed_headers=""
           if [[ -f "$incompatible_path" && -s "$incompatible_path" ]]; then
-            failed_headers=$(awk '{print "- " $0}' "$incompatible_path")
+            failed_headers=""
+            # Build a clean markdown list with no leading spaces
+            while IFS= read -r line; do
+              # Skip blank lines
+              [[ -z "$line" ]] && continue
+              failed_headers+=$'- '"$line"$'\n'
+            done < "$incompatible_path"
 
-            body="${body}
-
-            ---
-            **Backward Incompatible Headers:**
-            ${failed_headers:-None}
-
-            "
+            body+=$'\n\n**Backward Incompatible Headers:**\n'
+            body+="${failed_headers}"
           fi
         fi
 
-        echo ${body}
+        # Show what we'll post (use printf to preserve newlines)
+        printf '%s\n' "$body"
 
         # Post the comment to the PR
         curl -L \
