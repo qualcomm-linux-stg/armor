@@ -195,7 +195,7 @@ fi
 
 log "Compact summary written to $SUMMARY_FILE"
 
-BLOCKING_FILE="${GITHUB_WORKSPACE}/blocking_headers.txt"
+BLOCKING_FILE="${GITHUB_WORKSPACE}/blocking_headers_final.txt"
 overall_status="success"
 
 if [[ -f "$BLOCKING_FILE" && -s "$BLOCKING_FILE" && -f "$INCOMPATIBLE_FILE" && -s "$INCOMPATIBLE_FILE" ]]; then
