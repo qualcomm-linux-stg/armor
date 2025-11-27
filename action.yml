@@ -32,6 +32,11 @@ inputs:
     description: "Branch name for the event"
     required: true
 
+outputs:
+  final_comment:
+    description: "Final comment to post"
+    value: ${{ steps.armor-result.outputs.body }}
+
 runs:
   using: "composite"
   steps:
@@ -333,6 +338,7 @@ runs:
         echo "res=$STATUS" >> "$GITHUB_OUTPUT"
 
     - name: Post PR comment with ARMOR summary
+      id: armor-result
       if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
       shell: bash
       run: |
@@ -380,6 +386,8 @@ runs:
         # Show what we'll post (use printf to preserve newlines)
         printf '%s\n' "$body"
 
+        echo "body=$body" >> "$GITHUB_OUTPUT"
+
         # Post the comment to the PR
         curl -L \
           -X POST \
@@ -389,6 +397,7 @@ runs:
           "https://api.github.com/repos/${repo}/issues/${pr}/comments" \
           -d "$(jq -n --arg body "$body" '{body: $body}')"
 
+ 
     - name: Fail if incompatible changes detected
       if: steps.intersection.outputs.has-intersection == 'true'
       shell: bash
