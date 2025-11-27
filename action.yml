@@ -274,7 +274,7 @@ runs:
         set -e
 
         HEAD_SHA="${{ inputs.head-sha }}"
-        ACCESS_TOKEN="${{ secrets.svc_token }}"
+        ACCESS_TOKEN="${{ secrets.PVK }}"
         s3_location="success"
         REPO="${{ inputs.repo }}"
         post_name="armor-compat-check"
