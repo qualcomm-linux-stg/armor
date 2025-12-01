@@ -1,7 +1,6 @@
 
 name: "Run ARMOR tool"
 description: "Run ARMOR tool"
-author: "LinuxIntegration"
 branding:
   icon: "align-left"
   color: "blue"
@@ -63,12 +62,6 @@ runs:
         gcc --version || { echo "gcc missing"; exit 1; }
         docker --version || { echo "docker missing"; exit 1; }
 
-    - name: Build docker image (use action directory as context)
-      shell: bash
-      run: |
-        set -e
-        docker build -t armor_tool:latest -f "${{ github.action_path }}/Dockerfile" "${{ github.action_path }}"
-
     - name: Install yq
       shell: bash
       run: |
@@ -97,7 +90,7 @@ runs:
       run: |
         set -euo pipefail
         bash "${{ github.action_path }}/action_script/parse_headers.sh" \
-          "$GITHUB_WORKSPACE/public_headers/armor_config.yaml" \
+          "$GITHUB_WORKSPACE/public_headers/config.yml" \
           "${{ inputs.branch-name }}" \
           "$GITHUB_WORKSPACE/base" \
           "$GITHUB_WORKSPACE/head" \
@@ -119,9 +112,18 @@ runs:
           echo "No intersection found."
           : > "$GITHUB_WORKSPACE/updated_headers_PR.txt"
           echo "has-intersection=false" >> "$GITHUB_OUTPUT"
+          echo "No intersection with changed headers in PR and public headers." >> "$GITHUB_STEP_SUMMARY"
         fi
 
+    - name: Build docker image for armor bins
+      if: steps.intersection.outputs.has-intersection == 'true'
+      shell: bash
+      run: |
+        set -e
+        docker build -t armor_tool:latest -f "${{ github.action_path }}/Dockerfile" "${{ github.action_path }}"
+
     - name: Build ARMOR tool inside container
+      if: steps.intersection.outputs.has-intersection == 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -159,13 +161,6 @@ runs:
         OUT_ROOT="$(cat "$GITHUB_WORKSPACE/.armor_out_root")"
         echo "out-root=$OUT_ROOT" >> "$GITHUB_OUTPUT"
 
-    - name: Upload updated_headers_PR artifact
-      if: steps.intersection.outputs.has-intersection == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: updated_headers_PR
-        path: ${{ github.workspace }}/updated_headers_PR.txt
-
     - name: Upload all armor outputs (artifact)
       if: steps.intersection.outputs.has-intersection == 'true'
       uses: actions/upload-artifact@v4
@@ -179,7 +174,6 @@ runs:
       shell: bash
       run: |
         set -e
-        # Expect your run_armor.sh to set status file or output; adjust as needed
         STATUS_FILE="$GITHUB_WORKSPACE/.armor_status"
         if [[ -f "$STATUS_FILE" ]]; then
           STATUS="$(cat "$STATUS_FILE")"
@@ -189,8 +183,9 @@ runs:
         echo "Overall status: $STATUS"
         echo "res=$STATUS" >> "$GITHUB_OUTPUT"
 
-    - name: prepare PR comment with ARMOR summary
-      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+    - name: prepare ARMOR summary
+      if: >
+          steps.intersection.outputs.has-intersection == 'true'
       id: prepare-comment
       shell: bash
       run: |
