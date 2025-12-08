@@ -1,1 +1,0 @@
-# Make beta directory a Python package
