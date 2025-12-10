@@ -136,7 +136,7 @@ runs:
           armor_tool:latest bash -c '
             set -euo pipefail
             chmod +x ./build_binary.sh
-            ./build_binary.sh --package
+            ./build_binary.sh --build
             echo "$ACTION_DIR/build/src/armor/armor" > "$ACTION_DIR/.armor_bins_path"
           '
 
