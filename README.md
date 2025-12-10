@@ -212,4 +212,4 @@ If you encounter build errors, ensure the following environment setup:
 
 ## License
 
-Armor is licensed under the BSD 3-clause "New" or "Revised" License. Check out the [LICENSE](LICENSE.txt) for more details.
+commit-msg-check-action is licensed under the [BSD-3-Clause-Clear License](https://spdx.org/licenses/BSD-3-Clause-Clear.html). See [LICENSE.txt](LICENSE.txt) for the full license text.
