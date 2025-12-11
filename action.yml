@@ -234,6 +234,19 @@ runs:
           echo "$delimiter"
         } >> "$GITHUB_OUTPUT"
 
+    - name: Upload folder to S3 using aws cp
+      shell: bash
+      run: |
+        FOLDER="${{ steps.run-armor.outputs.out-root }}"
+        BUCKET="s3://qli-stg-armor-gh-artifacts"
+        PREFIX="${{ github.repository }}/$GITHUB_REF_NAME/${{ github.run_id }}"
+
+        # Upload all files in the folder recursively
+        aws s3 cp "$FOLDER" "${BUCKET}/${PREFIX}" \
+          --recursive \
+          --content-type "application/octet-stream"
+
+
     - name: Fail if incompatible changes detected
       if: steps.intersection.outputs.has-intersection == 'true'
       shell: bash
