@@ -68,7 +68,7 @@ If you encounter build errors, ensure the following environment setup:
 
 4. You only have LLVM version 14 installed (Clang 14 is only compatible with LLVM 14):
 
-    ls /usr/lib | grep llvm-
+    ls /usr/lib | grep llvm
 ## License
 
 armor is licensed under the [BSD-3-clause License](https://spdx.org/licenses/BSD-3-Clause.html). See [LICENSE.txt](LICENSE.txt) for the full license text.
