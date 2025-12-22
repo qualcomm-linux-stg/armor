@@ -224,20 +224,25 @@ runs:
         MM="$(date -u +'%m')"
         DD="$(date -u +'%d')"
         HH="$(date -u +'%H')"
-        echo "Uploading artifacts to Destination: ${BUCKET}/${PREFIX}"
+        
         PREFIX="${YYYY}/${MM}/${DD}/${HH}/${{ github.repository }}/${GITHUB_REF_NAME}/${{ github.run_id }}/files"
+        echo "Uploading artifacts to Destination: ${BUCKET}/${PREFIX}"
         set +e
         ERR_FILE="$(mktemp)"
         aws s3 cp "${FOLDER}" "${BUCKET}/${PREFIX}" \
           --recursive \
-          --content-type "application/octet-stream" 2> "${ERR_FILE}"
+          --content-type "application/octet-stream" \
+          --only-show-errors \
+          2> "${ERR_FILE}"
         rc=$?
         set -e
         if [[ ${rc} -eq 0 ]]; then
           echo "S3 upload succeeded."
         else
+          reason="$(cat "${ERR_FILE}")"
           echo "::error :: S3 upload FAILED (rc=${rc})." 
-          echo "::error :: Reason: ${reason}"
+          echo "::error :: Reason: ${reason:-No error output captured}"
+          exit "${rc}"
         fi
         rm -f "${ERR_FILE}"
 
