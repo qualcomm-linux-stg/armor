@@ -242,7 +242,6 @@ runs:
           reason="$(cat "${ERR_FILE}")"
           echo "::error :: S3 upload FAILED (rc=${rc})." 
           echo "::error :: Reason: ${reason:-No error output captured}"
-          exit "${rc}"
         fi
         rm -f "${ERR_FILE}"
 
