@@ -224,8 +224,8 @@ runs:
         MM="$(date -u +'%m')"
         DD="$(date -u +'%d')"
         HH="$(date -u +'%H')"
-        
-        PREFIX="${YYYY}/${MM}/${DD}/${HH}/${{ github.repository }}/${GITHUB_REF_NAME}/${{ github.run_id }}/files"
+        HOST="$(printf '%s' "${{ github.server_url }}" | sed -E 's#^[a-zA-Z]+://##; s#/.*$##')"
+        PREFIX="${YYYY}/${MM}/${DD}/${HH}/${{ HOST }}/${{ github.repository }}/${GITHUB_REF_NAME}/${{ github.run_id }}/files"
         echo "Uploading artifacts to Destination: ${BUCKET}/${PREFIX}"
         set +e
         ERR_FILE="$(mktemp)"
