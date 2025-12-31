@@ -28,6 +28,7 @@ BRANCH="${BRANCH:-unknown}"
 GITHUB_EVENT="${GITHUB_EVENT:-unknown}"
 PR_NUMBER="${PR_NUMBER:-}"
 workflow_url="${workflow_url:-}"
+INCLUDE_DEPS="${INCLUDE_DEPS:-}"
 REPORT_FORMAT="${REPORT_FORMAT:-json}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 DUMP_AST_DIFF="${DUMP_AST_DIFF:-false}"
@@ -82,7 +83,7 @@ for header in "${HEADERS[@]}"; do
     : > "$head_header_path"
   fi
 
-  "$ARMOR_CMD" "${args[@]}" "$BASE_PATH" "$HEAD_PATH" "$hdr_arg" || warn "armor failed for $header"
+  "$ARMOR_CMD" "${args[@]}" "$BASE_PATH" "$HEAD_PATH" "$hdr_arg" "$INCLUDE_DEPS" || warn "armor failed for $header"
 
   json_report="$WORK_DIR/armor_reports/json_reports/api_diff_report_$(basename "$hdr_arg").json"
   api_names=(); compatibility="backward_compatible"
