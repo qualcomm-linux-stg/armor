@@ -245,38 +245,6 @@ runs:
         echo "Overall status: $STATUS"
         echo "res=$STATUS" >> "$GITHUB_OUTPUT"
 
-    - name: Upload folder to S3
-      if: steps.intersection.outputs.has-intersection == 'true'
-      shell: bash
-      run: |
-        set -e
-        FOLDER="${{ steps.run-armor.outputs.out-root }}"
-        BUCKET="s3://qli-prd-armor-gh-artifacts"
-        YYYY="$(date -u +'%Y')"
-        MM="$(date -u +'%m')"
-        DD="$(date -u +'%d')"
-        HH="$(date -u +'%H')"
-        HOST="$(printf '%s' "${{ github.server_url }}" | sed -E 's#^[a-zA-Z]+://##; s#/.*$##')"
-        PREFIX="${YYYY}/${MM}/${DD}/${HH}/${HOST}/${{ github.repository }}/${GITHUB_REF_NAME}/${{ github.run_id }}/files"
-        echo "Uploading artifacts to Destination: ${BUCKET}/${PREFIX}"
-        set +e
-        ERR_FILE="$(mktemp)"
-        aws s3 cp "${FOLDER}" "${BUCKET}/${PREFIX}" \
-          --recursive \
-          --content-type "application/octet-stream" \
-          --only-show-errors \
-          2> "${ERR_FILE}"
-        rc=$?
-        set -e
-        if [[ ${rc} -eq 0 ]]; then
-          echo "S3 upload succeeded."
-        else
-          reason="$(cat "${ERR_FILE}")"
-          echo "::error :: S3 upload FAILED (rc=${rc})."
-          echo "::error :: Reason: ${reason:-No error output captured}"
-        fi
-        rm -f "${ERR_FILE}"
-
     - name: Prepare ARMOR summary
       if: steps.intersection.outputs.has-intersection == 'true'
       id: prepare-comment
