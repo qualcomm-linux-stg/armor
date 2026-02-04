@@ -256,7 +256,7 @@ runs:
         out_root="${{ steps.run-armor.outputs.out-root }}"
         blk="${out_root}/incompatible_blocking.txt"
         nbk="${out_root}/incompatible_nonblocking.txt"
-        status="${{ steps.compatibility_status.outputs.res }}"
+        status="failure"
 
         body="$(cat <<'EOF'
         ### ARMOR Check Result
