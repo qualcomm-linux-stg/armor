@@ -141,10 +141,6 @@ public:
   /// methods do not construct complete USRs (which incorporate the parents
   /// of an AST element), but only the fragments concerning the AST element
   /// itself.
-  void VisitType(QualType T);
-  void VisitTemplateParameterList(const TemplateParameterList *Params);
-  void VisitTemplateName(TemplateName Name);
-  void VisitTemplateArgument(const TemplateArgument &Arg);
 
   /// Emit a Decl's name using NamedDecl::printName() and return true if
   ///  the decl had no name.
