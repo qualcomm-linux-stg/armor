@@ -167,7 +167,7 @@ runs:
         # Recursively find all directories under ROOT
         while IFS= read -r dir; do
           # Strip ROOT prefix to get clean relative path
-          rel="${dir#$ROOT/}"
+          rel="${dir}"
           INCLUDE_ARGS="$INCLUDE_ARGS -I$rel"
         done < <(find "$ROOT" -type d | tail -n +2)
     
