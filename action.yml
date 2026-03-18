@@ -161,13 +161,13 @@ runs:
       run: |
         set -euo pipefail
     
-        ROOT="$GITHUB_WORKSPACE/head/"
+        ROOT="$GITHUB_WORKSPACE/head"
         INCLUDE_ARGS=""
     
         # Recursively find all directories under ROOT
         while IFS= read -r dir; do
           # Strip ROOT prefix to get clean relative path
-          rel="${dir}"
+          rel="${dir#$ROOT/}"
           INCLUDE_ARGS="$INCLUDE_ARGS -I$rel"
         done < <(find "$ROOT" -type d | tail -n +2)
     
