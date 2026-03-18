@@ -155,7 +155,7 @@ runs:
         fi
   
     - name: Collect recursive subdirectories
-      if: ${{ steps.install-yq.outputs.yq-installed == 'true' }}
+      if: steps.intersection.outputs.has-intersection == 'true'
       id: includes
       shell: bash
       run: |
