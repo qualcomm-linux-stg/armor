@@ -169,7 +169,7 @@ runs:
           # Strip ROOT prefix to get clean relative path
           rel="${dir#$ROOT/}"
           INCLUDE_ARGS="$INCLUDE_ARGS -I$rel"
-        done < <(find "$ROOT" -type d | tail -n +2)
+        done < <(find "$ROOT" -type d ! -path "$ROOT/.git*" | tail -n +2)
     
         echo "include_args=$INCLUDE_ARGS" >> "$GITHUB_OUTPUT"
         echo "Generated: $INCLUDE_ARGS"
