@@ -277,7 +277,7 @@ runs:
         REPOSITORY: ${{ github.repository }}
         RUN_ID: ${{ github.run_id }}
       run: |
-        set -e
+        set -x
     
         FOLDER="$OUT_ROOT"
         BUCKET="qli-stg-armor-gh-artifacts"
